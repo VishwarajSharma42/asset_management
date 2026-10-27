@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DSO Enrolment
+Comment=Write NFC tags for the college equipment register
+Exec=@INSTALL_DIR@/dso-enroller --fullscreen
+Terminal=false
+Categories=Utility;
+StartupNotify=false

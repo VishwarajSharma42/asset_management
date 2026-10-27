@@ -1,0 +1,32 @@
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; justify-content: space-between; align-items: baseline; padding-top: .8rem; padding-bottom: .8rem; }
+.wrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 0 1rem; }
+main.wrap { padding-top: 1rem; padding-bottom: 3rem; display: grid; gap: 1rem; }
+
+.photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--surface-2);
+  border-radius: var(--radius) var(--radius) 0 0; display: block; }
+.photo-empty { aspect-ratio: 4 / 3; display: grid; place-items: center; background: var(--surface-2);
+  color: var(--muted); border-radius: var(--radius) var(--radius) 0 0; }
+.passport h1 { margin-top: .2rem; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: .8rem 0 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 600; }
+.row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.choice input { position: absolute; opacity: 0; }
+.choice label {
+  display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 52px;
+  border: 2px solid var(--line); border-radius: 12px; font-weight: 700; cursor: pointer; margin: 0;
+}
+.choice input:checked + label.yes { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.choice input:checked + label.no { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.choice input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.notice { border-left: 5px solid var(--info); }
+.notice.bad { border-left-color: var(--bad); }
+.notice.ok { border-left-color: var(--ok); }
+.notice.warn { border-left-color: var(--warn); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+@media (max-width: 420px) { .grid-2 { grid-template-columns: 1fr; } }
+.hidden { display: none !important; }

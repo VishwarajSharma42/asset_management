@@ -1,0 +1,32 @@
+# secrets — NEVER commit
+secrets.local/
+*.env
+!*.env.example
+device.key
+*.key
+KEK*
+config.toml
+!config.example.toml
+
+# runtime data
+*.db
+*.db-wal
+*.db-shm
+media/
+outbox.db
+
+# python
+.venv/
+.build-venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.spec.bak
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

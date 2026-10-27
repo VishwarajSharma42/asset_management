@@ -1,0 +1,28 @@
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read            # PR workflows get no secrets and no write access
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: |
+          sudo apt-get update && sudo apt-get install -y libjpeg-dev
+          pip install -r backend/requirements-dev.txt requests customtkinter
+      - name: Backend, Pi and end-to-end suites
+        run: python scripts/test_all.py
+      - name: Frontend syntax check
+        run: |
+          for f in $(find frontend -name '*.js'); do cp "$f" /tmp/check.mjs && node --check /tmp/check.mjs; done

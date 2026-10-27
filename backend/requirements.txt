@@ -1,0 +1,7 @@
+Flask>=3.0,<4
+SQLAlchemy>=2.0,<3
+cryptography>=43
+argon2-cffi>=23.1
+Pillow>=10.3
+gunicorn>=22; sys_platform != "win32"
+psycopg[binary]>=3.1

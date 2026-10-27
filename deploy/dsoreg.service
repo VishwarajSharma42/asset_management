@@ -1,0 +1,47 @@
+# /etc/systemd/system/dsoreg.service
+#
+# Workers stay at 2 and the rate limiter lives in the database, so the configured limits mean
+# what they say however many workers run.
+#
+# The KEK is NOT in /etc/dsoreg/backend.env. It is provisioned separately and handed to the
+# process as a systemd credential (see docs/DEPLOY.md), so reading the env file or a backup of
+# the server's disk does not give an attacker the key that unwraps the private keys.
+[Unit]
+Description=DSO Asset Register API
+After=network.target postgresql.service
+Requires=dsoreg.socket
+
+[Service]
+Type=notify
+User=dsoreg
+Group=dsoreg
+WorkingDirectory=/srv/dsoreg/backend
+EnvironmentFile=/etc/dsoreg/backend.env
+LoadCredential=kek:/etc/dsoreg/kek.cred
+Environment=KEK_FILE=%d/kek
+ExecStart=/srv/dsoreg/.venv/bin/gunicorn --workers 2 --threads 4 --timeout 40 \
+          --bind unix:/run/dsoreg/gunicorn.sock --umask 007 "dsoreg.app:wsgi()"
+Restart=on-failure
+RuntimeDirectory=dsoreg
+StateDirectory=dsoreg
+ReadWritePaths=/var/lib/dsoreg
+
+# sandbox
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+# /etc/systemd/system/dsoreg.socket
+[Unit]
+Description=DSO Asset Register socket
+
+[Socket]
+ListenStream=/run/dsoreg/gunicorn.sock
+SocketUser=www-data
+SocketGroup=www-data
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target
