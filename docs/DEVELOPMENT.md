@@ -7,7 +7,7 @@ python -m venv .venv && . .venv/bin/activate                # Windows: .venv\Scr
 pip install -r backend/requirements-dev.txt customtkinter requests
 
 python scripts/gen_keys.py --dev --out-dir secrets.local --host localhost:5000 --backend-url http://localhost:5000
-python scripts/seed_demo.py --env-file secrets.local/backend.env --pi-home secrets.local/pi      # 8 scopes, usage, faults
+python scripts/seed_demo.py --env-file secrets.local/backend.env --pi-home secrets.local/pi      # 8 mixed assets, usage, faults
 cd backend && python -m dsoreg.cli --env-file ../secrets.local/backend.env run-dev --port 5000
 ```
 

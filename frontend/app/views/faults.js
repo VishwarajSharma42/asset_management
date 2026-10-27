@@ -30,7 +30,7 @@ export async function faultsView(root, { params }) {
       h("div", { class: "page-head" }, h("h1", { text: "Fault reports" }), filter),
       items.length
         ? h("div", { class: "card table-wrap" }, h("table", {}, h("thead", {}, h("tr", {},
-            ["Equipment", "Room", "Problem", "Reported by", "When", "Status", ""].map((t) => h("th", { text: t })))), h("tbody", {}, rows)))
+            ["Assets", "Room", "Problem", "Reported by", "When", "Status", ""].map((t) => h("th", { text: t })))), h("tbody", {}, rows)))
         : h("div", { class: "card" }, emptyState(status === "open" ? "No open faults. 🎉" : "Nothing to show.")));
   }
   await load();

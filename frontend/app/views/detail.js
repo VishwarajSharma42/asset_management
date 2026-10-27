@@ -18,7 +18,7 @@ export async function detailView(root, { match }) {
   function actions(asset) {
     if (!session.isAdmin()) return null;
     const edit = h("button", { class: "btn", type: "button", text: "Edit", onclick: async () => {
-      const v = await formDialog({ title: "Edit equipment", fields: [
+      const v = await formDialog({ title: "Edit asset", fields: [
         { name: "name", label: "Name", value: asset.name, maxlength: 100 },
         { name: "room_no", label: "Room no.", value: asset.room_no, maxlength: 20 }] });
       if (!v) return;
@@ -29,8 +29,8 @@ export async function detailView(root, { match }) {
     } });
     const retiring = asset.lifecycle === "active";
     const life = h("button", { class: "btn danger", type: "button", text: retiring ? "Retire" : "Restore", onclick: async () => {
-      const v = await formDialog({ title: retiring ? "Retire this equipment?" : "Restore this equipment?",
-        text: retiring ? "Retired equipment can no longer be used or logged." : "It will accept usage logs again.",
+      const v = await formDialog({ title: retiring ? "Retire this asset?" : "Restore this asset?",
+        text: retiring ? "Retired assets can no longer be used or logged." : "It will accept usage logs again.",
         fields: [{ name: "reason", label: "Reason", type: "textarea" }], submitLabel: retiring ? "Retire" : "Restore", danger: retiring });
       if (!v) return;
       try { await post(`/assets/${id}/lifecycle`, { lifecycle: retiring ? "retired" : "active", reason: v.reason }); toast("Updated", "ok"); load(); }
@@ -49,12 +49,26 @@ export async function detailView(root, { match }) {
     } });
   }
 
+  const PLACE_TEXT = { denied: "Refused", unavailable: "Unavailable", none: "Not sent" };
+  function placeCell(s) {
+    if (s.location_status === "ok") {
+      const l = s.location;                       // admins only; viewers just learn that one was captured
+      if (!l) return h("span", { class: "muted", text: "Captured" });
+      const q = `mlat=${l.lat}&mlon=${l.lng}#map=18/${l.lat}/${l.lng}`;
+      return h("a", { href: `https://www.openstreetmap.org/?${q}`, target: "_blank", rel: "noopener noreferrer",
+        title: l.accuracy == null ? "" : `Accurate to about ${Math.round(l.accuracy)} m`,
+        text: `${l.lat.toFixed(5)}, ${l.lng.toFixed(5)}` });
+    }
+    return h("span", { class: "muted", text: PLACE_TEXT[s.location_status] || "Not sent" });
+  }
+
   function usageTab(usage) {
     const rows = usage.items.map((s) => h("tr", {},
       h("td", { text: s.user_name }),
       h("td", { text: `${fmtDateTime(s.start_at)} → ${fmtTime(s.end_at)}` }),
       h("td", {}, s.working ? h("span", { class: "badge ok", text: "✓ Working" })
                             : h("span", { class: "badge bad", title: s.fault_note || "", text: "✗ Fault" })),
+      h("td", {}, placeCell(s)),
       h("td", {}, s.active ? h("span", { class: "badge info", text: "In use" }) : null,
         s.overlaps ? h("span", { class: "muted", text: ` shared with ${s.overlaps}` }) : null)));
     const range = h("select", { "aria-label": "Time range" }, [[1, "Last 24 hours"], [3, "Last 3 days"], [7, "Last 7 days"], [14, "Last 14 days"], [30, "Last 30 days"]]
@@ -65,11 +79,11 @@ export async function detailView(root, { match }) {
       h("div", { class: "row" }, h("h2", { text: "Usage timeline" }), range),
       usage.items.length ? h("div", { class: "card pad" }, usageTimeline(usage.items, days)) : emptyState("No usage logged in this period."),
       usage.items.length ? h("div", { class: "card table-wrap" }, h("table", {}, h("thead", {}, h("tr", {},
-        h("th", { text: "Person" }), h("th", { text: "When" }), h("th", { text: "Result" }), h("th", { text: "" }))), h("tbody", {}, rows))) : null);
+        h("th", { text: "Person" }), h("th", { text: "When" }), h("th", { text: "Result" }), h("th", { text: "Location" }), h("th", { text: "" }))), h("tbody", {}, rows))) : null);
   }
 
   function faultsTab(mine) {
-    if (!mine.length) return emptyState("No fault reports for this equipment.");
+    if (!mine.length) return emptyState("No fault reports for this asset.");
     return h("div", { class: "card table-wrap" }, h("table", {}, h("thead", {}, h("tr", {},
       h("th", { text: "Reported" }), h("th", { text: "Problem" }), h("th", { text: "By" }), h("th", { text: "Status" }), h("th", { text: "" }))),
       h("tbody", {}, mine.map((f) => h("tr", {},
@@ -100,7 +114,7 @@ export async function detailView(root, { match }) {
       onclick: (e) => { tab = key; tabBar.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b === e.currentTarget))); show(); } })));
     show();
     mount(root,
-      h("p", {}, h("a", { href: "#/assets", text: "← All equipment" })),
+      h("p", {}, h("a", { href: "#/assets", text: "← All assets" })),
       h("div", { class: "card pad detail-head" },
         asset.image_url ? h("img", { src: asset.image_url, alt: `Photo of ${asset.name}` }) : h("div", { class: "photo-empty", text: "No photo" }),
         h("div", {},

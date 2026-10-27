@@ -62,7 +62,8 @@ def lifecycle(asset_id: str):
 @bp.get("/assets/<asset_id>/usage")
 @http.require("usage:read")
 def asset_usage(asset_id: str):
-    return jsonify(registry.asset_usage(http.ctx(), asset_id, request.args.to_dict(), http.now()))
+    return jsonify(registry.asset_usage(http.ctx(), asset_id, request.args.to_dict(), http.now(),
+                                        include_location=g.user["role"] == "admin"))
 
 
 @bp.get("/faults")
@@ -82,7 +83,8 @@ def resolve_fault(fault_id: str):
 @bp.get("/export/usage.csv")
 @http.require("usage:read")
 def export_usage():
-    data = registry.export_usage_csv(http.ctx(), request.args.to_dict(), http.now())
+    data = registry.export_usage_csv(http.ctx(), request.args.to_dict(), http.now(),
+                                     include_location=g.user["role"] == "admin")
     return Response(data, mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=usage.csv"})
 

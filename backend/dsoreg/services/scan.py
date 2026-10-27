@@ -65,4 +65,5 @@ def scan(ctx: Ctx, t, d, now: datetime) -> dict:
                   "in_use_count": busy},
         "ticket": ticket,
         "ticket_expires": expires,
+        "location_required": ctx.settings.location_required,
     }

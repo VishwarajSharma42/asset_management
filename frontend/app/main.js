@@ -34,7 +34,7 @@ function shell(current) {
   const user = session.user;
   const links = [
     navLink("#/", "overview", "Overview", current),
-    navLink("#/assets", "assets", "Equipment", current),
+    navLink("#/assets", "assets", "Assets", current),
     navLink("#/faults", "faults", "Faults", current),
     session.isAdmin() ? navLink("#/users", "users", "Users", current) : null,
     session.isAdmin() ? navLink("#/audit", "audit", "Audit log", current) : null,
@@ -43,7 +43,7 @@ function shell(current) {
   const out = h("button", { class: "btn small", type: "button", text: "Sign out",
     onclick: () => { session.clear(); location.hash = "#/"; } });
   const top = h("header", { class: "bar" }, h("div", { class: "bar-in" },
-    h("div", { class: "brand" }, h("span", { class: "dot" }), "DSO Asset Register"),
+    h("div", { class: "brand" }, h("span", { class: "dot" }), "Asset Register"),
     h("nav", { "aria-label": "Main" }, links),
     h("div", { class: "who" }, h("span", { text: `${user.display_name} · ${user.role}` }), out)));
   mount(app, h("div", { class: "shell" }, top, view));

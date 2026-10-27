@@ -2,7 +2,7 @@
 
 Derived from the v3 college-asset-register specification, scoped to what this project needs:
 **tap-counter clone detection is intentionally left out**, and the register is built around one
-question — *who used which oscilloscope, when, and was it working?*
+question — *who used which asset, when, and was it working?*
 
 ## 1. Three lanes, three trust domains
 
@@ -15,7 +15,7 @@ question — *who used which oscilloscope, when, and was it working?*
         │                                   │                                  │
         └──────────────► one PostgreSQL database ◄───────────────────────────┘
                          assets (signed, immutable)   asset_profile / asset_state (mutable, audited)
-                         usage_log (append-only)      fault_report   audit_log (hash chain)
+                         usage_log (append-only, +location)      fault_report   audit_log (hash chain)
 ```
 
 They meet only at the database. The tag and the phone are untrusted; nginx canonicalises and

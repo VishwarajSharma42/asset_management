@@ -4,7 +4,7 @@
 
 | Threat | Mechanism | Where |
 |---|---|---|
-| Someone registers fake equipment | Ed25519-signed enrolment; unknown/revoked device refused; per-device daily quota; signature checked before the body is parsed | `routes/device.py`, `services/enrol.py` |
+| Someone registers a fake asset | Ed25519-signed enrolment; unknown/revoked device refused; per-device daily quota; signature checked before the body is parsed | `routes/device.py`, `services/enrol.py` |
 | Replay of a captured enrolment | ±90 s timestamp window **and** idempotency key bound into the signature; replays return the stored reply | `security/signing.py` |
 | Request tampering in transit | Signature covers method, path, timestamp, key and SHA-256 of the exact body; TLS on top | |
 | Stolen Pi / stolen device key | Revoke the device (`cli revoke-device`) — effective immediately; quota bounds what it could register; key file is mode 600 and refused otherwise; PIN gate on the app | |
@@ -33,9 +33,15 @@
    Use tamper-evident labels.
 4. **One box.** The KEK and the database live on the same server; key separation is only as strong as the
    difference in access control between the KEK credential and the database. See DEPLOY.md.
-5. **Personal data.** Usage entries hold people's names. There is no automatic retention/scrub job; decide a
+5. **Location is a claim, not proof.** When someone submits the usage form their phone is asked for its
+   position and the result is stored AES-128-GCM-encrypted (bound to the row). The browser, not the server,
+   supplies the coordinates, so anyone can fake them; treat them as supporting evidence. Only admins see
+   coordinates (dashboard + CSV); viewers see whether one was captured. People can refuse: that is recorded
+   as `denied` unless `LOCATION_REQUIRED=1`, which rejects submissions without one. Browsers only offer
+   location on HTTPS (or localhost), so the production site must use TLS.
+6. **Personal data.** Usage entries hold people's names and, if shared, their position. There is no automatic retention/scrub job; decide a
    policy and add one before collecting data from students.
-6. **PostgreSQL role grants and RLS in `postgres_roles.sql` are untested** by the automated suite (SQLite).
+7. **PostgreSQL role grants and RLS in `postgres_roles.sql` are untested** by the automated suite (SQLite).
 
 ## Rotating things
 

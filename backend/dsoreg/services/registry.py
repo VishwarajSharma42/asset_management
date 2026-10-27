@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, case, func, or_, select, update
@@ -167,7 +168,17 @@ def set_lifecycle(ctx: Ctx, asset_id: str, lifecycle: str, reason, actor: str, n
     return {"lifecycle": lifecycle}
 
 
-def asset_usage(ctx: Ctx, asset_id: str, args: dict, now: datetime) -> dict:
+def _place(ctx: Ctx, row) -> dict | None:
+    if not row.location_ct:
+        return None
+    try:
+        raw = json.loads(ctx.fields.decrypt("location", row.id, row.location_ct))
+    except (FieldCryptError, ValueError):
+        return None
+    return {"lat": raw["lat"], "lng": raw["lng"], "accuracy": raw.get("acc")}
+
+
+def asset_usage(ctx: Ctx, asset_id: str, args: dict, now: datetime, *, include_location: bool = False) -> dict:
     """Sessions for one asset, each tagged with how many other sessions overlapped it."""
     try:
         days = max(1, min(int(args.get("days", 14)), 365))
@@ -185,7 +196,9 @@ def asset_usage(ctx: Ctx, asset_id: str, args: dict, now: datetime) -> dict:
         overlaps = sum(1 for o in rows if o.id != r.id and o.start_at < r.end_at and o.end_at > r.start_at)
         items.append({"id": r.id, "user_name": r.user_name, "start_at": iso(r.start_at),
                       "end_at": iso(r.end_at), "working": r.working, "fault_note": r.fault_note,
-                      "overlaps": overlaps, "active": r.start_at <= now < r.end_at})
+                      "overlaps": overlaps, "active": r.start_at <= now < r.end_at,
+                      "location_status": r.location_status,
+                      **({"location": _place(ctx, r)} if include_location else {})})
     return {"since": iso(since), "items": items}
 
 
@@ -252,7 +265,7 @@ def _safe_cell(value) -> str:
     return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
 
 
-def export_usage_csv(ctx: Ctx, args: dict, now: datetime) -> str:
+def export_usage_csv(ctx: Ctx, args: dict, now: datetime, *, include_location: bool = False) -> str:
     try:
         days = max(1, min(int(args.get("days", 30)), 366))
     except ValueError:
@@ -263,9 +276,15 @@ def export_usage_csv(ctx: Ctx, args: dict, now: datetime) -> str:
          .order_by(usage_log.c.start_at.desc()).limit(50000))
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["asset", "room", "user", "start_utc", "end_utc", "working", "fault_note"])
+    w.writerow(["asset", "room", "user", "start_utc", "end_utc", "working", "fault_note", "location_status"]
+               + (["lat", "lng", "accuracy_m"] if include_location else []))
     with ctx.engine.connect() as conn:
         for r in conn.execute(q):
-            w.writerow([_safe_cell(x) for x in (r.name, r.room_no, r.user_name, iso(r.start_at),
-                                                 iso(r.end_at), "yes" if r.working else "no", r.fault_note)])
+            extra = []
+            if include_location:
+                p = _place(ctx, r)
+                extra = [p["lat"], p["lng"], p["accuracy"]] if p else ["", "", ""]
+            w.writerow([_safe_cell(x) for x in (r.name, r.room_no, r.user_name, iso(r.start_at), iso(r.end_at),
+                                                 "yes" if r.working else "no", r.fault_note,
+                                                 r.location_status, *extra)])
     return out.getvalue()

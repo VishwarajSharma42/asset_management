@@ -2,6 +2,7 @@
 same answer on the Pi that the server will give. The server is the one that decides."""
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -104,3 +105,40 @@ def usage_window(start_raw, end_raw, now: datetime) -> tuple[datetime, datetime]
     if start < now - MAX_PAST or end > now + MAX_FUTURE:
         raise Unprocessable("Those times are outside the allowed range.", code="invalid_window")
     return start, end
+
+
+def _coordinate(value, field: str, low: float, high: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) \
+            or not low <= value <= high:
+        raise Unprocessable(f"location {field} is not valid.", code="invalid_field", details={"field": f"location.{field}"})
+    return float(value)
+
+
+LOCATION_ERRORS = {"denied": "denied", "unavailable": "unavailable", "timeout": "unavailable"}
+
+
+def location(value, error, *, required: bool) -> tuple[dict | None, str]:
+    """(coordinates or None, status). Coordinates are what the person's phone CLAIMS: the
+    server cannot verify them, so they are evidence of a claim, not of presence."""
+    if value is not None and error is not None:
+        raise Unprocessable("Send a location or the reason it is missing, not both.", code="invalid_field",
+                            details={"field": "location"})
+    if value is None:
+        if required:
+            raise Unprocessable("Location is required. Allow location access on your phone and try again.",
+                                code="location_required")
+        if error is None:
+            return None, "none"
+        if error not in LOCATION_ERRORS:
+            raise Unprocessable("location_error is not valid.", code="invalid_field",
+                                details={"field": "location_error"})
+        return None, LOCATION_ERRORS[error]
+    if not isinstance(value, dict) or not set(value) <= {"lat", "lng", "accuracy"} or \
+            not {"lat", "lng"} <= set(value):
+        raise Unprocessable("location must be {lat, lng, accuracy}.", code="invalid_field",
+                            details={"field": "location"})
+    lat = _coordinate(value["lat"], "lat", -90.0, 90.0)
+    lng = _coordinate(value["lng"], "lng", -180.0, 180.0)
+    acc = value.get("accuracy")
+    acc = None if acc is None else round(_coordinate(acc, "accuracy", 0.0, 100_000.0), 1)
+    return {"lat": round(lat, 6), "lng": round(lng, 6), "acc": acc}, "ok"

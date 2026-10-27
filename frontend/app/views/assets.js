@@ -54,10 +54,10 @@ export async function assetsView(root, { params }) {
       h("td", { class: "muted", title: fmtDateTime(a.last_used_at), text: relative(a.last_used_at) })));
     const table = rows.length
       ? h("div", { class: "table-wrap" }, h("table", {},
-          h("thead", {}, h("tr", {}, th("name", "Equipment"), h("th", { text: "Product ID" }), th("room", "Room"),
+          h("thead", {}, h("tr", {}, th("name", "Asset"), h("th", { text: "Product ID" }), th("room", "Room"),
             th("condition", "Status"), h("th", { text: "Now" }), th("last_used", "Last used"))),
           h("tbody", {}, rows)))
-      : emptyState("No equipment matches these filters.");
+      : emptyState("No assets match these filters.");
     const from = data.total ? state.offset + 1 : 0, to = Math.min(state.offset + PAGE, data.total);
     const prev = h("button", { class: "btn small", type: "button", text: "← Previous", disabled: state.offset === 0,
       onclick: () => { state.offset = Math.max(0, state.offset - PAGE); load(); } });
@@ -83,7 +83,7 @@ export async function assetsView(root, { params }) {
   } });
 
   mount(root,
-    h("div", { class: "page-head" }, h("h1", { text: "Equipment" }), exportCsv),
+    h("div", { class: "page-head" }, h("h1", { text: "Assets" }), exportCsv),
     h("div", { class: "card pad" },
       h("div", { class: "filters" },
         h("div", {}, h("label", { for: "q", text: "Search" }), q),

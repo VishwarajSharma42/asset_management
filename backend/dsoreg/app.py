@@ -40,7 +40,7 @@ def create_app(settings: Settings | None = None, engine=None) -> Flask:
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "no-referrer")
         resp.headers.setdefault("X-Frame-Options", "DENY")
-        resp.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
+        resp.headers.setdefault("Permissions-Policy", "geolocation=(self), camera=(), microphone=()")
         resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
         if settings.production and settings.hsts:
             resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")

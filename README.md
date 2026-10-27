@@ -1,10 +1,10 @@
-# DSO Asset Register
+# Asset Register
 
-NFC-tagged tracking for the college's digital storage oscilloscopes (and any other lab equipment).
+NFC-tagged tracking for any college asset — projectors, laptops, lab instruments, furniture, anything that can carry a tag.
 
 * **Admins** write a tag on a Raspberry Pi: name, product ID, room, optional photo. The tag carries a
   link plus the product ID encrypted with AES-128-GCM. The record goes to the college server.
-* **Anyone** taps the tag with a phone — no app. They see the equipment's name, photo and room, then
+* **Anyone** taps the tag with a phone — no app. They see the asset’s name, photo and room, then
   log their name, start/end time and whether it worked. Several people can use one asset at the
   same time. A "No" flags a fault.
 * **Staff** sign in to a dashboard: every asset, who is using it now, who used it when (with overlaps

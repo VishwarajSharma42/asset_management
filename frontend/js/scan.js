@@ -2,7 +2,7 @@ import { clear, h, localInputValue, mount, safeStorage } from "./dom.js";
 
 const root = document.getElementById("root");
 const params = new URLSearchParams(location.search);
-const NAME_KEY = "dso.user_name";
+const NAME_KEY = "assetreg.user_name";
 
 async function post(path, body) {
   const res = await fetch(path, {
@@ -19,10 +19,10 @@ function notice(kind, title, text) {
 }
 
 const MESSAGES = {
-  unregistered: ["warn", "Tag not recognised", "This tag is not in the register. Please tell the lab in-charge so it can be checked."],
-  tag_mismatch: ["warn", "Tag needs a check", "The information on this tag does not match the register. Please tell the lab in-charge."],
-  integrity_error: ["bad", "Record needs attention", "This record could not be verified. Please tell the lab in-charge."],
-  retired: ["info", "Equipment retired", "This equipment has been taken out of service."],
+  unregistered: ["warn", "Tag not recognised", "This tag is not in the register. Please tell the asset in-charge so it can be checked."],
+  tag_mismatch: ["warn", "Tag needs a check", "The information on this tag does not match the register. Please tell the asset in-charge."],
+  integrity_error: ["bad", "Record needs attention", "This record could not be verified. Please tell the asset in-charge."],
+  retired: ["info", "Asset retired", "This asset has been taken out of service."],
 };
 
 function passport(asset) {
@@ -40,7 +40,19 @@ function passport(asset) {
         h("dt", { text: "Room" }), h("dd", { text: asset.room_no }))));
 }
 
-function usageForm(ticket, onDone) {
+// Asks the phone where it is. Resolves to {location} or {location_error}; never rejects.
+// Must be called from the submit handler (a user gesture) so the browser shows its prompt.
+function getLocation() {
+  return new Promise((resolve) => {
+    if (!("geolocation" in navigator) || !window.isSecureContext) { resolve({ location_error: "unavailable" }); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ location: { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy } }),
+      (err) => resolve({ location_error: err.code === 1 ? "denied" : err.code === 3 ? "timeout" : "unavailable" }),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  });
+}
+
+function usageForm(ticket, locationRequired, onDone) {
   const store = safeStorage();
   const now = new Date();
   const later = new Date(now.getTime() + 60 * 60 * 1000);
@@ -54,7 +66,7 @@ function usageForm(ticket, onDone) {
   const note = h("textarea", { id: "fault_note", maxlength: 500, placeholder: "e.g. Channel 2 shows no signal" });
   const noteField = h("div", { class: "field hidden" },
     h("label", { for: "fault_note", text: "What is wrong?" }), note,
-    h("p", { class: "hint", text: "Lab staff will see this on their dashboard." }));
+    h("p", { class: "hint", text: "Staff will see this on their dashboard." }));
   const error = h("p", { class: "error-text", role: "alert" });
   const submit = h("button", { class: "btn primary", type: "submit", text: "Submit" });
 
@@ -63,17 +75,21 @@ function usageForm(ticket, onDone) {
 
   const form = h("form", { class: "card pad", novalidate: false },
     h("h2", { text: "Log your use" }),
-    h("p", { class: "muted", text: "Tell us who used this equipment and whether it worked." }),
+    h("p", { class: "muted", text: "Tell us who used this asset and whether it worked." }),
     h("div", { class: "field" }, h("label", { for: "user_name", text: "Your name" }), name),
     h("div", { class: "grid-2" },
       h("div", { class: "field" }, h("label", { for: "start_at", text: "Start time" }), start),
       h("div", { class: "field" }, h("label", { for: "end_at", text: "End time" }), end)),
     h("fieldset", { class: "field", style: null },
-      h("label", { text: "Is the equipment working properly?" }),
+      h("label", { text: "Is the asset working properly?" }),
       h("div", { class: "choice" },
         yes, h("label", { for: "w-yes", class: "yes", text: "✓ Yes" }),
         no, h("label", { for: "w-no", class: "no", text: "✗ No" }))),
-    noteField, error, submit);
+    noteField,
+    h("p", { class: "hint", text: locationRequired
+      ? "Your phone's location is required and will be recorded with this entry. Your browser will ask permission."
+      : "Your phone's location will be recorded with this entry if you allow it." }),
+    error, submit);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -83,10 +99,19 @@ function usageForm(ticket, onDone) {
       error.textContent = "The end time must be after the start time.";
       return;
     }
-    submit.disabled = true; submit.textContent = "Sending…";
+    submit.disabled = true; submit.textContent = "Getting location…";
+    const place = await getLocation();
+    if (locationRequired && !place.location) {
+      error.textContent = place.location_error === "denied"
+        ? "Location is required. Allow location access for this site in your browser, then press Submit again."
+        : "Could not get your location. Check that location is switched on, then press Submit again.";
+      submit.disabled = false; submit.textContent = "Submit";
+      return;
+    }
+    submit.textContent = "Sending…";
     const { ok, data } = await post("/api/v1/usage", {
       ticket, user_name: name.value, start_at: startDate.toISOString(), end_at: endDate.toISOString(),
-      working: yes.checked, fault_note: no.checked ? note.value : null,
+      working: yes.checked, fault_note: no.checked ? note.value : null, ...place,
     });
     if (ok) {
       try { store?.setItem(NAME_KEY, name.value.trim()); } catch { /* private mode */ }
@@ -102,7 +127,7 @@ function usageForm(ticket, onDone) {
 async function main() {
   const t = params.get("t"), d = params.get("d");
   if (!t || !d) {
-    mount(root, notice("warn", "No tag detected", "Hold your phone against the tag on the equipment to open this page."));
+    mount(root, notice("warn", "No tag detected", "Hold your phone against the tag on the asset to open this page."));
     return;
   }
   let res;
@@ -123,11 +148,11 @@ async function main() {
   const slot = h("div");
   const passportSlot = h("div");
   const drawPassport = () => mount(passportSlot, passport(res.data.asset));
-  const show = () => mount(slot, usageForm(res.data.ticket, (out) => {
+  const show = () => mount(slot, usageForm(res.data.ticket, res.data.location_required === true, (out) => {
     if (out.fault_flagged) { res.data.asset.condition = "faulty"; drawPassport(); }
     mount(slot, h("div", { class: "card pad notice ok" },
       h("h2", { text: "Thank you — recorded" }),
-      h("p", { text: out.fault_flagged ? "The fault has been flagged for the lab staff." : "Your use has been logged." }),
+      h("p", { text: out.fault_flagged ? "The fault has been flagged for the staff." : "Your use has been logged." }),
       h("p", { class: "muted", text: "To log another use, tap the tag again." })));
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }));

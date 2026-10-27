@@ -14,7 +14,7 @@ export async function overviewView(root) {
     ? h("ul", { class: "stack", style: null }, o.rooms.map((r) => h("li", { class: "row" },
         h("a", { href: `#/assets?room=${encodeURIComponent(r.room_no)}`, text: `Room ${r.room_no}` }),
         h("span", { class: "muted", text: `${r.count} item${r.count === 1 ? "" : "s"}` }))))
-    : emptyState("No equipment registered yet.");
+    : emptyState("No assets registered yet.");
 
   const recent = faults.items.slice(0, 6);
   const faultList = recent.length
@@ -27,7 +27,7 @@ export async function overviewView(root) {
   mount(root,
     h("div", { class: "page-head" }, h("h1", { text: "Overview" })),
     h("div", { class: "tiles" },
-      tile("#/assets", o.total_assets, "Equipment registered"),
+      tile("#/assets", o.total_assets, "Assets registered"),
       tile("#/assets?in_use=1", o.in_use_now, "In use right now", "info"),
       tile("#/assets?condition=faulty", o.faulty, "Faulty", o.faulty ? "bad" : "ok"),
       tile("#/faults", o.open_faults, "Open fault reports", o.open_faults ? "bad" : ""),

@@ -108,6 +108,10 @@ usage_log = Table(
     Column("submitted_at", UTCDateTime, nullable=False),
     Column("ip_hash", String(32), nullable=False),
     Column("ticket_jti", String(32), nullable=False, unique=True),
+    # Where the person was when they submitted: AES-128-GCM of {"lat","lng","acc"}, bound to this row.
+    # status: ok | denied (they refused) | unavailable (no GPS/insecure page/timeout) | none (not sent)
+    Column("location_ct", LargeBinary),
+    Column("location_status", String(12), nullable=False, default="none"),
 )
 Index("ix_usage_asset_start", usage_log.c.asset_id, usage_log.c.start_at)
 Index("ix_usage_start", usage_log.c.start_at)

@@ -60,7 +60,7 @@ Copy `~/Desktop/dso-enroller.desktop` to `~/.config/autostart/`. The shortcut st
 
 ## Using it
 
-1. Unlock with the PIN. 2. Tap **Equipment name**, **Product ID**, **Room number** (on-screen keyboard), optionally
+1. Unlock with the PIN. 2. Tap **Asset name**, **Product ID**, **Room number** (on-screen keyboard), optionally
 **Choose photo…**. 3. **Write tag**, hold a tag flat on the reader. 4. The record is saved on the Pi *first*, then sent;
 the chips at the top show reader / server / how many are waiting. If the server is unreachable nothing is lost —
 the queue drains when it returns. "Write another tag" keeps the room number.

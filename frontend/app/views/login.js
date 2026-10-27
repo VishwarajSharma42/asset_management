@@ -6,7 +6,7 @@ export function loginView(onSubmit, message) {
   const error = h("p", { class: "error-text", role: "alert", text: message || "" });
   const btn = h("button", { class: "btn primary", type: "submit", text: "Sign in" });
   const form = h("form", { class: "card pad" },
-    h("h1", { text: "DSO Asset Register" }),
+    h("h1", { text: "Asset Register" }),
     h("p", { class: "muted", text: "Staff sign-in" }),
     h("div", { class: "field" }, h("label", { for: "u", text: "Username" }), user),
     h("div", { class: "field" }, h("label", { for: "p", text: "Password" }), pass),

@@ -60,7 +60,7 @@ def test_tag_whose_data_was_swapped_is_flagged(env):
 def test_usage_submission_working(env):
     asset_id, link = enrol_asset(env)
     r = usage(env, scan(env, link)["ticket"])
-    assert r.status_code == 201 and r.get_json() == {"status": "recorded", "fault_flagged": False}
+    assert r.status_code == 201 and r.get_json() == {"status": "recorded", "fault_flagged": False, "location_recorded": False}
     with env.engine.connect() as c:
         row = c.execute(select(usage_log)).one()
         assert row.user_name == "Asha Patil" and row.working and row.asset_id == asset_id

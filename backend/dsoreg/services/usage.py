@@ -2,6 +2,7 @@
 (a lab bench is shared), so there is deliberately no exclusion rule."""
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime
 
@@ -14,7 +15,7 @@ from ..db import asset_state, fault_report, usage_log
 from ..errors import BadRequest, Conflict, NotFound
 from . import audit
 
-_ALLOWED = {"ticket", "user_name", "start_at", "end_at", "working", "fault_note"}
+_ALLOWED = {"ticket", "user_name", "start_at", "end_at", "working", "fault_note", "location", "location_error"}
 
 
 def submit(ctx: Ctx, *, body: dict, ip_h: str, now: datetime) -> dict:
@@ -31,6 +32,10 @@ def submit(ctx: Ctx, *, body: dict, ip_h: str, now: datetime) -> dict:
     note = v.fault_note(body.get("fault_note"), required=not working)
     if working:
         note = None
+    # Checked BEFORE anything is written, so a refused location leaves the ticket unused and the
+    # person can allow location access and press Submit again.
+    place, place_status = v.location(body.get("location"), body.get("location_error"),
+                                     required=ctx.settings.location_required)
 
     usage_id, fault_id = str(uuid.uuid4()), str(uuid.uuid4())
     try:
@@ -44,7 +49,9 @@ def submit(ctx: Ctx, *, body: dict, ip_h: str, now: datetime) -> dict:
             conn.execute(usage_log.insert().values(
                 id=usage_id, asset_id=asset_id, user_name=name, start_at=start, end_at=end,
                 working=working, fault_note=note, submitted_at=now, ip_hash=ip_h,
-                ticket_jti=claims["jti"]))
+                ticket_jti=claims["jti"], location_status=place_status,
+                location_ct=(ctx.fields.encrypt("location", usage_id, json.dumps(place, separators=(",", ":")))
+                             if place else None)))
             if not working:
                 conn.execute(fault_report.insert().values(
                     id=fault_id, asset_id=asset_id, usage_id=usage_id, note=note,
@@ -56,4 +63,4 @@ def submit(ctx: Ctx, *, body: dict, ip_h: str, now: datetime) -> dict:
     except IntegrityError:
         raise Conflict("That scan was already used. Tap the tag again to submit another.",
                        code="ticket_used") from None
-    return {"status": "recorded", "fault_flagged": not working}
+    return {"status": "recorded", "fault_flagged": not working, "location_recorded": place_status == "ok"}

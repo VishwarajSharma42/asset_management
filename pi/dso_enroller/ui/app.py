@@ -53,7 +53,7 @@ class PinScreen(ctk.CTkFrame):
         self._first: str | None = None
         card = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=18, border_width=1, border_color=theme.LINE)
         card.place(relx=0.5, rely=0.5, anchor="center")
-        ctk.CTkLabel(card, text="DSO Enrolment", font=theme.font(26, "bold"), text_color=theme.TEXT).pack(padx=40, pady=(24, 0))
+        ctk.CTkLabel(card, text="Asset Enrolment", font=theme.font(26, "bold"), text_color=theme.TEXT).pack(padx=40, pady=(24, 0))
         self.msg = ctk.CTkLabel(card, text="", font=theme.font(16), text_color=theme.MUTED, wraplength=320)
         self.msg.pack(pady=(4, 10))
         self.pad = PinPad(card, on_enter=self._entered)
@@ -224,7 +224,7 @@ class WriteDialog(ctk.CTkToplevel):
         else:
             self.banner.configure(text="✓ Tag written" + (" and locked" if locked_ok else ""), text_color=theme.OK, fg_color=theme.OK_SOFT)
             self.detail.configure(text="The record is saved on this device and is being sent to the server. "
-                                       "Stick the tag on the equipment.")
+                                       "Stick the tag on the asset.")
         self.app.refresh_status()
         if lock_failed:
             ctk.CTkButton(self.buttons, text="Try locking again", height=48, fg_color=theme.WARN_SOFT, text_color=theme.WARN,
@@ -287,7 +287,7 @@ class App(ctk.CTk):
         self.last_activity = time.time()
         self.writing = False
 
-        self.title(f"DSO Enrolment {__version__}")
+        self.title(f"Asset Enrolment {__version__}")
         self.configure(fg_color=theme.BG)
         self.geometry(size or "1024x600")
         self.minsize(780, 460)
@@ -408,7 +408,7 @@ class App(ctk.CTk):
 
         bar = ctk.CTkFrame(screen, fg_color=theme.SURFACE, corner_radius=0, height=58)
         bar.grid(row=0, column=0, columnspan=2, sticky="ew")
-        ctk.CTkLabel(bar, text="DSO Enrolment", font=theme.font(20, "bold"), text_color=theme.TEXT).pack(side="left", padx=16, pady=12)
+        ctk.CTkLabel(bar, text="Asset Enrolment", font=theme.font(20, "bold"), text_color=theme.TEXT).pack(side="left", padx=16, pady=12)
         ctk.CTkButton(bar, text="🔒 Lock", width=84, height=36, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
                       hover_color=theme.LINE, command=self.lock).pack(side="right", padx=(4, 12))
         ctk.CTkButton(bar, text="⚙", width=40, height=36, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
@@ -437,7 +437,7 @@ class App(ctk.CTk):
             self.keyboard.register(entry, kind=kind, autocap=autocap, upper=upper)
             return entry
 
-        self.f_name = field("Equipment name", "e.g. Tektronix TBS1052C oscilloscope", "name", autocap=True)
+        self.f_name = field("Asset name", "e.g. Epson projector, Dell laptop, Fluke multimeter", "name", autocap=True)
         self.f_product = field("Product ID", "e.g. DSO-EXTC-0042", "product", upper=True, hint="Letters, digits and / _ . -")
         self.f_room = field("Room number", "e.g. EXTC-3", "room", upper=True)
         self.err = ctk.CTkLabel(form, text="", text_color=theme.BAD, font=theme.font(14), anchor="w", wraplength=520, justify="left")
@@ -592,7 +592,7 @@ class App(ctk.CTk):
             pid = validators.product_id(self.f_product.get())
             room = validators.room_no(self.f_room.get())
         except validators.ValidationError as exc:
-            labels = {"name": "Equipment name", "product_id": "Product ID", "room_no": "Room number"}
+            labels = {"name": "Asset name", "product_id": "Product ID", "room_no": "Room number"}
             self.err.configure(text=f"{labels.get(exc.field, exc.field)}: {exc.message}")
             return
         if self.service is None:

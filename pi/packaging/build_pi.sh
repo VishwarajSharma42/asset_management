@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the DSO enrolment app into a standalone Linux program ON THE RASPBERRY PI.
+# Build the asset enrolment app into a standalone Linux program ON THE RASPBERRY PI.
 #
 #   cd pi && bash packaging/build_pi.sh
 #

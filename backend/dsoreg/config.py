@@ -58,6 +58,7 @@ class Settings:
     max_body_bytes: int = 3 * 1024 * 1024
     hsts: bool = True
     serve_frontend: bool = True
+    location_required: bool = False
 
     @property
     def production(self) -> bool:
@@ -119,4 +120,5 @@ class Settings:
             device_daily_enrol_limit=int(env.get("DEVICE_DAILY_ENROL_LIMIT", "300")),
             hsts=env.get("HSTS", "1") == "1",
             serve_frontend=env.get("SERVE_FRONTEND", "1" if mode != "production" else "0") == "1",
+            location_required=env.get("LOCATION_REQUIRED", "0") == "1",
         )

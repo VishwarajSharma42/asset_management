@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DEVELOPMENT ONLY. Fills a dev database with demo equipment, staff accounts and usage so
+"""DEVELOPMENT ONLY. Fills a dev database with demo assets, staff accounts and usage so
 the dashboard has something to show. Refuses to run unless DSOREG_ENV=development.
 
     python scripts/seed_demo.py --env-file secrets.local/backend.env --pi-home secrets.local/pi
@@ -33,7 +33,7 @@ def load_env(path: str) -> None:
             os.environ[k.strip()] = v.strip()
 
 
-def scope_image(path: Path, label: str, hue: tuple[int, int, int]) -> None:
+def asset_image(path: Path, label: str, hue: tuple[int, int, int]) -> None:
     img = Image.new("RGB", (800, 600), (24, 30, 38))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle((60, 60, 740, 540), 28, fill=(48, 56, 66), outline=hue, width=6)
@@ -104,20 +104,20 @@ def main() -> int:
     drainer._session = Session()
 
     catalogue = [
-        ("Tektronix TBS1052C Oscilloscope", "DSO-EXTC-0001", "EXTC-3", (60, 160, 255)),
-        ("Keysight DSOX1102G Oscilloscope", "DSO-EXTC-0002", "EXTC-3", (255, 170, 60)),
-        ("Rigol DS1054Z Oscilloscope", "DSO-EXTC-0003", "EXTC-4", (230, 80, 120)),
-        ("Siglent SDS1104X-E Oscilloscope", "DSO-EXTC-0004", "EXTC-4", (120, 220, 120)),
-        ("Tektronix TBS2104 Oscilloscope", "DSO-EXTC-0005", "EXTC-7", (180, 120, 255)),
-        ("GW Instek GDS-1102B Oscilloscope", "DSO-EXTC-0006", "EXTC-7", (255, 220, 80)),
-        ("Hantek DSO5102P Oscilloscope", "DSO-EXTC-0007", "EXTC-9", (90, 200, 200)),
-        ("Rohde & Schwarz RTB2004", "DSO-EXTC-0008", "EXTC-9", (255, 120, 90)),
+        ("Epson EB-X06 Projector", "PRJ-0001", "LH-101", (60, 160, 255)),
+        ("Dell Latitude 5420 Laptop", "LAP-0002", "LH-101", (255, 170, 60)),
+        ("Tektronix TBS1052C Oscilloscope", "LAB-0003", "EXTC-4", (230, 80, 120)),
+        ("HP LaserJet Pro M404 Printer", "PRN-0004", "ADM-12", (120, 220, 120)),
+        ("Fluke 117 Multimeter", "LAB-0005", "EXTC-7", (180, 120, 255)),
+        ("Canon EOS 250D Camera", "CAM-0006", "MED-2", (255, 220, 80)),
+        ("Mobile Whiteboard", "FUR-0007", "LH-102", (90, 200, 200)),
+        ("Cisco Catalyst 2960 Switch", "NET-0008", "SRV-1", (255, 120, 90)),
     ]
     results = []
     for i, (name, pid, room, hue) in enumerate(catalogue):
         photo = tmp / f"{pid}.png"
         if i != 6:  # one item has no photo, to show the empty state
-            scope_image(photo, pid, hue)
+            asset_image(photo, pid, hue)
         results.append(svc.enrol(EnrolForm(name, pid, room, str(photo) if i != 6 else None), lambda *a: None))
     drainer.drain_once()
     print("enrolled", box.stats())
@@ -137,11 +137,17 @@ def main() -> int:
                 "end_at": (now + timedelta(minutes=end_min)).isoformat()}
         if note:
             body["fault_note"] = note
+        n = counter[0]
+        if n % 7 == 3:
+            body["location_error"] = "denied"
+        elif n % 7 != 5:
+            body["location"] = {"lat": 19.0760 + (n % 9) * 0.00012, "lng": 72.8777 + (n % 11) * 0.00010,
+                                "accuracy": 8.0 + (n % 5) * 6}
         r = client.post("/api/v1/usage", json=body, environ_overrides=addr)
         assert r.status_code == 201, r.get_json()
 
     day = 24 * 60
-    # right now: two people share the Tektronix, one person on the TBS2104
+    # right now: two people share the projector, one person has the multimeter
     use(0, "Asha Patil", -25, 35)
     use(0, "Rohan Mehta", -10, 50)
     use(4, "Sara D'Souza", -40, 20)
@@ -156,14 +162,14 @@ def main() -> int:
     use(7, "Rohan Mehta", -day - 50, -day + 40)
     # faults: one open on #2, one open on #7, one raised and then fixed on #5
     use(2, "Sara D'Souza", -300, -240, working=False, note="Channel 2 shows no signal; probe tested on channel 1 and it works")
-    use(7, "Karan Shah", -120, -70, working=False, note="Probe compensation signal is missing on the front panel")
-    use(5, "Imran Qureshi", -2 * day + 200, -2 * day + 260, working=False, note="Screen flickers at power-on")
+    use(7, "Karan Shah", -120, -70, working=False, note="Port 7 is not passing traffic; the link light stays off")
+    use(5, "Imran Qureshi", -2 * day + 200, -2 * day + 260, working=False, note="Autofocus hunts and never locks")
     use(5, "Neha Iyer", -day + 30, -day + 100)
 
     from dsoreg.services import registry
     for f in registry.list_faults(ctx, "open"):
-        if f["asset_name"].startswith("GW Instek"):
-            registry.resolve_fault(ctx, f["id"], "Replaced the display cable", "user:admin", utcnow())
+        if f["asset_name"].startswith("Canon"):
+            registry.resolve_fault(ctx, f["id"], "Cleaned the lens contacts and updated the firmware", "user:admin", utcnow())
 
     print("demo data ready.  admin / Demo-Passphrase-Alpha-2026   viewer / Demo-Passphrase-Bravo-2026")
     print("tap URLs (open these on a phone or in the browser to see the public page):")
