@@ -51,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("verify-audit")
     rn = sub.add_parser("run-dev")
     rn.add_argument("--port", type=int, default=5000)
+    rn.add_argument("--host", default="127.0.0.1",
+                    help="address to listen on; give this machine's LAN address to let a Pi reach it")
     args = ap.parse_args(argv)
 
     if args.env_file:
@@ -63,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "run-dev":
         from .app import create_app
-        create_app().run(host="127.0.0.1", port=args.port, debug=False)
+        create_app().run(host=args.host, port=args.port, debug=False)
         return 0
 
     from .app import create_app

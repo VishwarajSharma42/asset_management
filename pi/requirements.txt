@@ -5,4 +5,5 @@ argon2-cffi>=23.1
 requests>=2.32
 # NFC hardware (Raspberry Pi only; the simulator reader works without these)
 adafruit-blinka>=8.68; platform_machine == "aarch64" or platform_machine == "armv7l"
+gpiod>=2.2.2,<3; platform_machine == "aarch64" or platform_machine == "armv7l"
 adafruit-circuitpython-pn532>=2.4; platform_machine == "aarch64" or platform_machine == "armv7l"

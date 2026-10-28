@@ -78,6 +78,7 @@ class Config:
     ca_bundle: str | None
     outbox_path: Path
     log_path: Path
+    allow_clone_tags: bool = False   # accept NTAG216-compatible tags whose vendor byte is not NXP
 
     @property
     def link_scheme(self) -> str:
@@ -123,4 +124,5 @@ def load(home: Path | None = None) -> Config:
         page_write_delay=float(cfg.get("page_write_delay", 0.05)),
         page_write_retries=int(cfg.get("page_write_retries", 3)),
         write_mode=str(cfg.get("write_mode", "library")), ca_bundle=cfg.get("ca_bundle"),
+        allow_clone_tags=bool(cfg.get("allow_clone_tags", False)),
         outbox_path=state_dir() / "outbox.db", log_path=state_dir() / "enroller.log")

@@ -45,7 +45,7 @@ function shell(current) {
   const top = h("header", { class: "bar" }, h("div", { class: "bar-in" },
     h("div", { class: "brand" }, h("span", { class: "dot" }), "Asset Register"),
     h("nav", { "aria-label": "Main" }, links),
-    h("div", { class: "who" }, h("span", { text: `${user.display_name} · ${user.role}` }), out)));
+    h("div", { class: "who" }, h("span", { text: user.role[0].toUpperCase() + user.role.slice(1) }), out)));
   mount(app, h("div", { class: "shell" }, top, view));
   return view;
 }

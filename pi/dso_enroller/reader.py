@@ -35,7 +35,8 @@ class Reader(Protocol):
 class PN532Reader:
     name = "PN532"
 
-    def __init__(self, *, interface: str = "i2c", delay: float = 0.05, retries: int = 3, mode: str = "library"):
+    def __init__(self, *, interface: str = "i2c", delay: float = 0.05, retries: int = 3, mode: str = "library",
+                 allow_clone: bool = False):
         try:
             import board  # type: ignore
             import busio  # type: ignore
@@ -55,6 +56,7 @@ class PN532Reader:
         except Exception as exc:  # noqa: BLE001
             raise ReaderError(f"Could not start the PN532 over {interface.upper()}: {exc}") from exc
         self._delay, self._retries, self._mode = delay, retries, mode
+        self._allow_clone, self._genuine = allow_clone, True
 
     def wait_for_tag(self, timeout: float, cancel: threading.Event | None = None) -> str:
         deadline = time.time() + timeout
@@ -67,7 +69,7 @@ class PN532Reader:
         raise ReaderError("No tag was presented in time.")
 
     def identify(self) -> None:
-        ntag.assert_ntag216(self._pn)
+        self._genuine = ntag.is_genuine(ntag.assert_ntag216(self._pn, allow_clone=self._allow_clone))
 
     def write_ndef(self, tlv: bytes) -> int:
         return ntag.write_ndef(self._pn, tlv, delay=self._delay, retries=self._retries, mode=self._mode)
@@ -76,6 +78,8 @@ class PN532Reader:
         ntag.verify_ndef(self._pn, tlv)
 
     def lock(self, ndef_pages: int) -> None:
+        if not self._genuine:
+            raise ReaderError("Locking is only supported on genuine NXP tags; this one is a clone.")
         ntag.lock_data_pages(self._pn, ndef_pages, delay=self._delay, retries=self._retries, mode=self._mode)
 
     def close(self) -> None:
@@ -166,4 +170,4 @@ def open_reader(cfg) -> Reader:
     if cfg.reader == "sim":
         return SimulatedReader(delay=cfg.page_write_delay, retries=cfg.page_write_retries, auto_new_tag=True)
     return PN532Reader(interface=cfg.pn532_interface, delay=cfg.page_write_delay,
-                       retries=cfg.page_write_retries, mode=cfg.write_mode)
+                       retries=cfg.page_write_retries, mode=cfg.write_mode, allow_clone=cfg.allow_clone_tags)

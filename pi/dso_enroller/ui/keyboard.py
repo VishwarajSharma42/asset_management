@@ -40,8 +40,9 @@ class KeyboardManager:
 
     # ------------------------------------------------------------------ wiring ----
     def register(self, entry, *, kind: str = "text", autocap: bool = False, upper: bool = False,
-                 on_done: Callable | None = None) -> None:
-        self._dispatch[id(entry)] = (kind, autocap, upper, on_done)
+                 on_done: Callable | None = None, next_to=None) -> None:
+        """`next_to`: the box the Done key moves on to (it then reads "Next" and the keyboard stays up)."""
+        self._dispatch[id(entry)] = (kind, autocap, upper, on_done, next_to)
         # A tap opens the keyboard. FocusIn is deliberately NOT used: the window manager hands focus
         # back to the last text box whenever a dialog closes, which popped the keyboard up by itself.
         _inner(entry).bind("<Button-1>", lambda _e, en=entry: self.show(en), add="+")
@@ -52,8 +53,13 @@ class KeyboardManager:
 
     def show(self, entry) -> None:
         self.target = entry
-        self.kind, self.autocap, self.upper, self._done_cb = self._dispatch[id(entry)]
+        self.kind, self.autocap, self.upper, self._done_cb, self._next_to = self._dispatch[id(entry)]
         self.symbols = False
+        try:
+            _inner(entry).focus_set()
+            _inner(entry).icursor("end")
+        except Exception:  # noqa: BLE001
+            pass
         self.shift = self.autocap and self._at_word_start()
         self._build()
         if not self.visible():
@@ -66,6 +72,10 @@ class KeyboardManager:
         self._on_change()
 
     def done(self) -> None:
+        nxt = getattr(self, "_next_to", None)
+        if nxt is not None:
+            self.show(nxt)
+            return
         cb = getattr(self, "_done_cb", None)
         self.hide()
         if cb:
@@ -137,8 +147,8 @@ class KeyboardManager:
     def _key(self, parent, label, command, *, width=1, accent=False, tall=False):
         small = self.compact()
         btn = ctk.CTkButton(
-            parent, text=label, command=command, width=(40 if small else 44) * width, height=42 if small else 50,
-            corner_radius=9, font=theme.font(17 if small else 20, "bold" if accent else "normal"),
+            parent, text=label, command=command, width=(40 if small else 44) * width, height=38 if small else 50,
+            corner_radius=9, font=theme.font(16 if small else 20, "bold" if accent else "normal"),
             fg_color=theme.ACCENT if accent else theme.SURFACE, hover_color=theme.ACCENT_HOVER if accent else theme.LINE,
             text_color=theme.ACCENT_INK if accent else theme.TEXT, border_width=1, border_color=theme.LINE)
         return btn
@@ -149,7 +159,7 @@ class KeyboardManager:
         self._keys = []
         blocked = BLOCKED.get(self.kind, set())
         wrap = ctk.CTkFrame(self.host, fg_color="transparent")
-        wrap.pack(padx=6, pady=6)
+        wrap.pack(padx=6, pady=3 if self.compact() else 6)
 
         def row(chars, extra_left=None, extra_right=None):
             r = ctk.CTkFrame(wrap, fg_color="transparent")
@@ -190,7 +200,8 @@ class KeyboardManager:
             self._key(bottom, "_", lambda: self.type_char("_"), width=7).pack(side="left", padx=2)
         self._key(bottom, ".", lambda: self.type_char(".")).pack(side="left", padx=2)
         self._key(bottom, "/", lambda: self.type_char("/")).pack(side="left", padx=2)
-        self._key(bottom, "Done", self.done, width=2.2, accent=True).pack(side="left", padx=2)
+        self._key(bottom, "Next" if getattr(self, "_next_to", None) is not None else "Done", self.done,
+                  width=2.2, accent=True).pack(side="left", padx=2)
         self._refresh_caps()
 
     def _refresh_caps(self) -> None:
@@ -202,23 +213,25 @@ class KeyboardManager:
 class PinPad(ctk.CTkFrame):
     """A numeric keypad that collects digits and shows them as dots."""
 
-    def __init__(self, master, *, length: int = 12, on_enter: Callable[[str], None]):
+    def __init__(self, master, *, length: int = 12, on_enter: Callable[[str], None], compact: bool = False):
         super().__init__(master, fg_color="transparent")
         self._digits = ""
         self._max = length
         self._on_enter = on_enter
-        self.dots = ctk.CTkLabel(self, text="", font=theme.font(30, "bold"), text_color=theme.TEXT, height=48)
-        self.dots.pack(pady=(0, 8))
+        self.dots = ctk.CTkLabel(self, text="", font=theme.font(26 if compact else 30, "bold"), text_color=theme.TEXT,
+                                 height=34 if compact else 48)
+        self.dots.pack(pady=(0, 2 if compact else 8))
         grid = ctk.CTkFrame(self, fg_color="transparent")
         grid.pack()
         keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "OK"]
         for i, k in enumerate(keys):
             accent = k == "OK"
             ctk.CTkButton(
-                grid, text=k, width=88, height=64, corner_radius=14, font=theme.font(24, "bold"),
+                grid, text=k, width=84 if compact else 88, height=50 if compact else 64, corner_radius=14,
+                font=theme.font(22 if compact else 24, "bold"),
                 fg_color=theme.ACCENT if accent else theme.SURFACE, hover_color=theme.ACCENT_HOVER if accent else theme.LINE,
                 text_color=theme.ACCENT_INK if accent else theme.TEXT, border_width=1, border_color=theme.LINE,
-                command=lambda key=k: self._press(key)).grid(row=i // 3, column=i % 3, padx=5, pady=5)
+                command=lambda key=k: self._press(key)).grid(row=i // 3, column=i % 3, padx=4, pady=3 if compact else 5)
 
     def _press(self, key: str) -> None:
         if key == "⌫":

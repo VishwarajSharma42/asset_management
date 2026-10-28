@@ -53,11 +53,13 @@ class PinScreen(ctk.CTkFrame):
         self._first: str | None = None
         card = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=18, border_width=1, border_color=theme.LINE)
         card.place(relx=0.5, rely=0.5, anchor="center")
-        ctk.CTkLabel(card, text="Asset Enrolment", font=theme.font(26, "bold"), text_color=theme.TEXT).pack(padx=40, pady=(24, 0))
+        small = app.winfo_screenheight() < 700
+        ctk.CTkLabel(card, text="Asset Enrolment", font=theme.font(22 if small else 26, "bold"), text_color=theme.TEXT).pack(
+            padx=40, pady=(12 if small else 24, 0))
         self.msg = ctk.CTkLabel(card, text="", font=theme.font(16), text_color=theme.MUTED, wraplength=320)
-        self.msg.pack(pady=(4, 10))
-        self.pad = PinPad(card, on_enter=self._entered)
-        self.pad.pack(padx=24, pady=(0, 22))
+        self.msg.pack(pady=(2, 6))
+        self.pad = PinPad(card, on_enter=self._entered, compact=small)
+        self.pad.pack(padx=24, pady=(0, 12 if small else 22))
         self.refresh()
 
     def refresh(self) -> None:
@@ -111,9 +113,9 @@ class WriteDialog(ctk.CTkToplevel):
         self.configure(fg_color=theme.BG)
         self.transient(app)
         lw, lh = app.logical_size()
-        dw, dh = min(lw - 20, 620), min(lh - 20, 520)
+        dw, dh = min(lw - 20, 620), min(lh - (56 if lh < 700 else 20), 520)   # the window frame takes ~30 px on top
         self.geometry(f"{dw}x{dh}+{app.winfo_rootx() + int((app.winfo_width() - dw * app._get_window_scaling()) // 2)}"
-                      f"+{app.winfo_rooty() + int(10 * app._get_window_scaling())}")
+                      f"+{app.winfo_rooty() + int((4 if lh < 700 else 10) * app._get_window_scaling())}")
         self.protocol("WM_DELETE_WINDOW", lambda: None)
         self.after(150, lambda: self.grab_set())
         self.events: queue.Queue = queue.Queue()
@@ -123,23 +125,23 @@ class WriteDialog(ctk.CTkToplevel):
         self._steps = [s for s in STEP_LABELS if with_lock or s != "lock"]
         self._rows: dict[str, tuple[ctk.CTkLabel, ctk.CTkLabel]] = {}
 
-        ctk.CTkLabel(self, text=form.name, font=theme.font(20, "bold"), text_color=theme.TEXT, wraplength=dw - 40).pack(padx=20, pady=(12, 0))
+        ctk.CTkLabel(self, text=form.name, font=theme.font(18, "bold"), text_color=theme.TEXT, wraplength=dw - 40).pack(padx=20, pady=(8, 0))
         ctk.CTkLabel(self, text=f"{form.product_id}  ·  Room {form.room_no}", font=theme.font(14), text_color=theme.MUTED).pack()
-        self.banner = ctk.CTkLabel(self, text="Preparing…", font=theme.font(19, "bold"), text_color=theme.ACCENT,
-                                   fg_color=theme.SURFACE, corner_radius=12, height=52, wraplength=dw - 60)
-        self.banner.pack(fill="x", padx=20, pady=10)
+        self.banner = ctk.CTkLabel(self, text="Preparing…", font=theme.font(18, "bold"), text_color=theme.ACCENT,
+                                   fg_color=theme.SURFACE, corner_radius=12, height=46, wraplength=dw - 60)
+        self.banner.pack(fill="x", padx=20, pady=6)
         box = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=12, border_width=1, border_color=theme.LINE)
         box.pack(fill="x", padx=20)
         for step in self._steps:
             row = ctk.CTkFrame(box, fg_color="transparent")
-            row.pack(fill="x", padx=14, pady=1)
-            icon = ctk.CTkLabel(row, text="○", width=28, height=24, font=theme.font(16), text_color=theme.MUTED)
+            row.pack(fill="x", padx=14, pady=0)
+            icon = ctk.CTkLabel(row, text="○", width=28, height=22, font=theme.font(15), text_color=theme.MUTED)
             icon.pack(side="left")
-            label = ctk.CTkLabel(row, text=STEP_LABELS[step], height=24, font=theme.font(15), text_color=theme.MUTED, anchor="w")
+            label = ctk.CTkLabel(row, text=STEP_LABELS[step], height=22, font=theme.font(14), text_color=theme.MUTED, anchor="w")
             label.pack(side="left", fill="x", expand=True)
             self._rows[step] = (icon, label)
         self.buttons = ctk.CTkFrame(self, fg_color="transparent")
-        self.buttons.pack(side="bottom", fill="x", padx=20, pady=10)
+        self.buttons.pack(side="bottom", fill="x", padx=20, pady=8)
         self.detail = ctk.CTkLabel(self, text="", font=theme.font(13), text_color=theme.MUTED, wraplength=dw - 44, justify="left")
         self.detail.pack(fill="x", padx=22, pady=(6, 0))
         self._cancel = ctk.CTkButton(self.buttons, text="Cancel", height=48, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
@@ -291,7 +293,7 @@ class App(ctk.CTk):
         self.configure(fg_color=theme.BG)
         self.geometry(size or "1024x600")
         self.minsize(780, 460)
-        if fullscreen:
+        if fullscreen or (size is None and self.winfo_screenheight() <= 600):
             self.attributes("-fullscreen", True)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -384,20 +386,15 @@ class App(ctk.CTk):
             self.destroy()
 
     def _keyboard_changed(self) -> None:
-        up = self.keyboard.visible()
-        small = self.logical_size()[1] < 560
-        if hasattr(self, "right_panel"):
-            if up and small:
-                # Little screen: give the form the whole width and every spare pixel while typing.
-                self.right_panel.grid_remove()
-                self.left_panel.grid_configure(columnspan=2, padx=12)
-                self.write_btn.grid_remove()
-            else:
-                self.right_panel.grid()
-                self.left_panel.grid_configure(columnspan=1, padx=(12, 6))
-                self.write_btn.grid()
-        if self.keyboard.target is not None:
-            self.after(120, lambda: self._scroll_to(self.keyboard.target))
+        if not hasattr(self, "write_btn"):
+            return
+        typing = self.keyboard.target is not None and self.logical_size()[1] < 700
+        # Small screen while typing: hand every spare pixel to the three fields.
+        for widget in (self.bar, self.right_panel, self.photo_row, self.lock_row, self.err, self.write_btn):
+            if widget is None:
+                continue
+            (widget.grid_remove if typing else widget.grid)()
+        self.left_panel.grid_configure(columnspan=2 if typing else 1, padx=10 if typing else (10, 5))
 
     # ---------------------------------------------------------------- main screen ------
     def _build_main(self) -> ctk.CTkFrame:
@@ -406,97 +403,82 @@ class App(ctk.CTk):
         screen.grid_columnconfigure(0, weight=3)
         screen.grid_columnconfigure(1, weight=2)
 
-        bar = ctk.CTkFrame(screen, fg_color=theme.SURFACE, corner_radius=0, height=58)
+        bar = ctk.CTkFrame(screen, fg_color=theme.SURFACE, corner_radius=0, height=48)
         bar.grid(row=0, column=0, columnspan=2, sticky="ew")
-        ctk.CTkLabel(bar, text="Asset Enrolment", font=theme.font(20, "bold"), text_color=theme.TEXT).pack(side="left", padx=16, pady=12)
-        ctk.CTkButton(bar, text="🔒 Lock", width=84, height=36, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
-                      hover_color=theme.LINE, command=self.lock).pack(side="right", padx=(4, 12))
-        ctk.CTkButton(bar, text="⚙", width=40, height=36, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
+        self.bar = bar
+        ctk.CTkLabel(bar, text="Asset Enrolment", font=theme.font(18, "bold"), text_color=theme.TEXT).pack(side="left", padx=14, pady=8)
+        ctk.CTkButton(bar, text="Lock", width=64, height=34, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
+                      hover_color=theme.LINE, command=self.lock).pack(side="right", padx=(4, 10))
+        ctk.CTkButton(bar, text="⚙", width=38, height=34, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
                       hover_color=theme.LINE, command=self._settings).pack(side="right", padx=4)
         self.chips = ctk.CTkFrame(bar, fg_color="transparent")
-        self.chips.pack(side="right", padx=8)
+        self.chips.pack(side="right", padx=6)
 
-        # --- left: the form --------------------------------------------------------------
-        left = ctk.CTkFrame(screen, fg_color="transparent")
-        left.grid(row=1, column=0, sticky="nsew", padx=(12, 6), pady=10)
+        # --- left: the form. Everything fits one screen, nothing scrolls. -----------------
+        left = ctk.CTkFrame(screen, fg_color=theme.SURFACE, corner_radius=14, border_width=1, border_color=theme.LINE)
+        left.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=8)
         self.left_panel = left
-        left.grid_rowconfigure(0, weight=1)
-        left.grid_columnconfigure(0, weight=1)
-        self.form_scroll = ctk.CTkScrollableFrame(left, fg_color=theme.SURFACE, corner_radius=14, border_width=1, border_color=theme.LINE)
-        self.form_scroll.grid(row=0, column=0, sticky="nsew")
-        form = self.form_scroll
+        left.grid_columnconfigure((0, 1), weight=1, uniform="cols")
+        left.grid_rowconfigure(6, weight=1)
 
-        def field(label: str, placeholder: str, kind: str, *, autocap=False, upper=False, hint: str = ""):
-            ctk.CTkLabel(form, text=label, font=theme.font(14, "bold"), text_color=theme.TEXT, anchor="w").pack(fill="x", padx=14, pady=(10, 2))
-            entry = ctk.CTkEntry(form, placeholder_text=placeholder, height=48, font=theme.font(17), corner_radius=10,
+        def field(row: int, col: int, span: int, label: str, placeholder: str):
+            left_pad = 14 if col == 0 else 6
+            right_pad = 14 if col + span == 2 else 6
+            ctk.CTkLabel(left, text=label, font=theme.font(13, "bold"), text_color=theme.TEXT, anchor="w").grid(
+                row=row, column=col, columnspan=span, sticky="ew", padx=(left_pad, right_pad), pady=(10 if row == 0 else 4, 1))
+            entry = ctk.CTkEntry(left, placeholder_text=placeholder, height=50, font=theme.font(17), corner_radius=10,
                                  fg_color=theme.SURFACE_2, border_color=theme.LINE, text_color=theme.TEXT,
                                  placeholder_text_color=theme.MUTED)
-            entry.pack(fill="x", padx=14)
-            if hint:
-                ctk.CTkLabel(form, text=hint, font=theme.font(12), text_color=theme.MUTED, anchor="w").pack(fill="x", padx=16)
-            self.keyboard.register(entry, kind=kind, autocap=autocap, upper=upper)
+            entry.grid(row=row + 1, column=col, columnspan=span, sticky="ew", padx=(left_pad, right_pad))
             return entry
 
-        self.f_name = field("Asset name", "e.g. Epson projector, Dell laptop, Fluke multimeter", "name", autocap=True)
-        self.f_product = field("Product ID", "e.g. DSO-EXTC-0042", "product", upper=True, hint="Letters, digits and / _ . -")
-        self.f_room = field("Room number", "e.g. EXTC-3", "room", upper=True)
-        self.err = ctk.CTkLabel(form, text="", text_color=theme.BAD, font=theme.font(14), anchor="w", wraplength=520, justify="left")
-        self.err.pack(fill="x", padx=16, pady=(6, 0))
+        self.f_name = field(0, 0, 2, "Asset name", "e.g. Epson projector")
+        self.f_product = field(2, 0, 1, "Product ID", "e.g. PRJ-0042")
+        self.f_room = field(2, 1, 1, "Room number", "e.g. LH-101")
+        # "Next" walks name -> product ID -> room, so the form can be filled without closing the keyboard.
+        self.keyboard.register(self.f_name, kind="name", autocap=True, next_to=self.f_product)
+        self.keyboard.register(self.f_product, kind="product", upper=True, next_to=self.f_room)
+        self.keyboard.register(self.f_room, kind="room", upper=True)
 
-        ctk.CTkLabel(form, text="Photo (optional)", font=theme.font(14, "bold"), text_color=theme.TEXT, anchor="w").pack(fill="x", padx=14, pady=(10, 2))
-        prow = ctk.CTkFrame(form, fg_color="transparent")
-        prow.pack(fill="x", padx=14)
-        self.photo_label = ctk.CTkLabel(prow, text="No photo", width=110, height=82, fg_color=theme.SURFACE_2, corner_radius=10, text_color=theme.MUTED)
+        self.photo_row = ctk.CTkFrame(left, fg_color="transparent")
+        self.photo_row.grid(row=4, column=0, columnspan=2, sticky="ew", padx=14, pady=(8, 0))
+        self.photo_label = ctk.CTkLabel(self.photo_row, text="No photo", width=56, height=42, fg_color=theme.SURFACE_2,
+                                        corner_radius=8, text_color=theme.MUTED, font=theme.font(10))
         self.photo_label.pack(side="left")
-        pcol = ctk.CTkFrame(prow, fg_color="transparent")
-        pcol.pack(side="left", padx=10)
-        ctk.CTkButton(pcol, text="Choose photo…", height=44, fg_color=theme.ACCENT, text_color=theme.ACCENT_INK,
-                      hover_color=theme.ACCENT_HOVER, command=self._pick_photo).pack(side="left")
-        self.photo_remove = ctk.CTkButton(pcol, text="Remove", height=44, width=80, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
-                                          hover_color=theme.LINE, command=self._clear_photo, state="disabled")
-        self.photo_remove.pack(side="left", padx=(8, 0))
+        ctk.CTkButton(self.photo_row, text="Add photo (optional)", height=42, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
+                      hover_color=theme.LINE, border_width=1, border_color=theme.LINE,
+                      command=self._pick_photo).pack(side="left", padx=8)
+        self.photo_remove = ctk.CTkButton(self.photo_row, text="Remove", height=42, width=70, fg_color=theme.SURFACE_2,
+                                          text_color=theme.TEXT, hover_color=theme.LINE, command=self._clear_photo, state="disabled")
+        self.photo_remove.pack(side="left")
 
         self.lock_var = tk.BooleanVar(value=False)
+        self.lock_row = None
         if self.cfg.tag_lock_enabled:
-            lk = ctk.CTkFrame(form, fg_color=theme.WARN_SOFT, corner_radius=10)
-            lk.pack(fill="x", padx=14, pady=(14, 0))
-            ctk.CTkSwitch(lk, text="Lock this tag permanently after writing", variable=self.lock_var, font=theme.font(15, "bold"),
-                          text_color=theme.WARN).pack(anchor="w", padx=12, pady=(10, 2))
-            ctk.CTkLabel(lk, text="A locked tag can never be changed or reused.", font=theme.font(12), text_color=theme.WARN, anchor="w").pack(fill="x", padx=14, pady=(0, 10))
-        self.kb_spacer = ctk.CTkFrame(form, fg_color="transparent", height=1)
-        self.kb_spacer.pack()
+            self.lock_row = ctk.CTkFrame(left, fg_color=theme.WARN_SOFT, corner_radius=10)
+            self.lock_row.grid(row=5, column=0, columnspan=2, sticky="ew", padx=14, pady=(8, 0))
+            ctk.CTkSwitch(self.lock_row, text="Lock this tag permanently (cannot be undone)", variable=self.lock_var,
+                          font=theme.font(13, "bold"), text_color=theme.WARN).pack(anchor="w", padx=12, pady=8)
 
-        self.write_btn = ctk.CTkButton(left, text="Write tag", height=58, font=theme.font(20, "bold"), corner_radius=14,
-                                       fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, text_color=theme.ACCENT_INK, command=self._start_write)
-        self.write_btn.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        self.err = ctk.CTkLabel(left, text="", text_color=theme.BAD, font=theme.font(13), anchor="nw", wraplength=430, justify="left")
+        self.err.grid(row=6, column=0, columnspan=2, sticky="new", padx=16, pady=(6, 0))
+        self.write_btn = ctk.CTkButton(left, text="Write tag", height=54, font=theme.font(20, "bold"), corner_radius=14,
+                                       fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, text_color=theme.ACCENT_INK,
+                                       command=self._start_write)
+        self.write_btn.grid(row=7, column=0, columnspan=2, sticky="ew", padx=14, pady=(6, 12))
 
-        # --- right: recent tags -----------------------------------------------------------
+        # --- right: recent tags (the last few; no scrolling) -----------------------------------
         right = ctk.CTkFrame(screen, fg_color=theme.SURFACE, corner_radius=14, border_width=1, border_color=theme.LINE)
-        right.grid(row=1, column=1, sticky="nsew", padx=(6, 12), pady=10)
+        right.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=8)
         self.right_panel = right
         head = ctk.CTkFrame(right, fg_color="transparent")
-        head.pack(fill="x", padx=14, pady=(12, 4))
-        ctk.CTkLabel(head, text="Recent tags", font=theme.font(17, "bold"), text_color=theme.TEXT).pack(side="left")
-        ctk.CTkButton(head, text="Sync now", width=88, height=32, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
+        head.pack(fill="x", padx=12, pady=(10, 2))
+        ctk.CTkLabel(head, text="Recent tags", font=theme.font(16, "bold"), text_color=theme.TEXT).pack(side="left")
+        ctk.CTkButton(head, text="Sync", width=60, height=30, fg_color=theme.SURFACE_2, text_color=theme.TEXT,
                       hover_color=theme.LINE, command=self._sync_now).pack(side="right")
-        self.recent = ctk.CTkScrollableFrame(right, fg_color="transparent")
-        self.recent.pack(fill="both", expand=True, padx=4, pady=(0, 8))
+        self.recent = ctk.CTkFrame(right, fg_color="transparent")
+        self.recent.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         return screen
-
-    # ---- keyboard scrolling --------------------------------------------------------------
-    def _scroll_to(self, widget) -> None:
-        """Scroll the form so `widget` sits near the top, clear of the keyboard."""
-        try:
-            self.update_idletasks()
-            canvas = self.form_scroll._parent_canvas
-            room = self.kb_host.winfo_height() if self.kb_host.winfo_ismapped() else 0
-            self.kb_spacer.configure(height=max(1, room))
-            self.update_idletasks()
-            total = max(1, self.form_scroll.winfo_height())
-            y = widget.winfo_rooty() - self.form_scroll.winfo_rooty()   # position inside the scrolled content
-            canvas.yview_moveto(max(0.0, min(1.0, (y - 30) / total)))
-        except Exception:  # noqa: BLE001
-            log.debug("scroll_to failed", exc_info=True)
 
     # ---- photo ---------------------------------------------------------------------------
     def _pick_photo(self) -> None:
@@ -505,7 +487,7 @@ class App(ctk.CTk):
 
     def _photo_chosen(self, path: str) -> None:
         try:
-            thumb = images.preview(path, (110, 82))
+            thumb = images.preview(path, (56, 42))
         except images.ImageError as exc:
             self.err.configure(text=str(exc))
             return
@@ -525,26 +507,26 @@ class App(ctk.CTk):
             return
         for child in self.chips.winfo_children():
             child.destroy()
-        chip(self.chips, f"Reader: {self.reader.name}" if self.reader else "Reader: not ready",
-             "ok" if self.reader else "bad", None if self.reader else self._reader_help).pack(side="left", padx=3)
+        chip(self.chips, "Reader ready" if self.reader else "Reader not ready",
+             "ok" if self.reader else "bad", None if self.reader else self._reader_help).pack(side="left", padx=2)
         online = self.drainer.online
-        chip(self.chips, {True: "Server: online", False: "Server: offline", None: "Server: checking"}[online],
-             {True: "ok", False: "warn", None: "neutral"}[online]).pack(side="left", padx=3)
+        chip(self.chips, {True: "Online", False: "Offline", None: "Connecting"}[online],
+             {True: "ok", False: "warn", None: "neutral"}[online]).pack(side="left", padx=2)
         stats = self.outbox.stats()
         if stats["failed"]:
-            chip(self.chips, f"{stats['failed']} rejected", "bad", self._show_failures).pack(side="left", padx=3)
+            chip(self.chips, f"{stats['failed']} rejected", "bad", self._show_failures).pack(side="left", padx=2)
         if stats["pending"]:
-            chip(self.chips, f"{stats['pending']} waiting to sync", "warn").pack(side="left", padx=3)
+            chip(self.chips, f"{stats['pending']} unsent", "warn").pack(side="left", padx=2)
         drift = self.drainer.clock_drift
         if drift is not None and abs(drift) > 30:
-            chip(self.chips, f"Clock off by {int(abs(drift))} s", "bad").pack(side="left", padx=3)
-        chip(self.chips, "Tags: LOCK ON" if self.cfg.tag_lock_enabled else "Tags: rewritable",
-             "warn" if self.cfg.tag_lock_enabled else "neutral").pack(side="left", padx=3)
+            chip(self.chips, f"Clock off {int(abs(drift))}s", "bad").pack(side="left", padx=2)
+        if self.cfg.tag_lock_enabled:
+            chip(self.chips, "Tag lock ON", "warn").pack(side="left", padx=2)
         self.write_btn.configure(state="normal" if self.service and not self.writing else "disabled")
         self._render_recent()
 
     def _render_recent(self) -> None:
-        rows = self.outbox.recent(10)
+        rows = self.outbox.recent(4 if self.winfo_screenheight() < 700 else 8)
         sig = [(r["id"], r["state"], r["attempts"]) for r in rows]
         if getattr(self, "_recent_sig", None) == sig:
             return
@@ -552,19 +534,19 @@ class App(ctk.CTk):
         for child in self.recent.winfo_children():
             child.destroy()
         if not rows:
-            ctk.CTkLabel(self.recent, text="Tags you write will appear here.", text_color=theme.MUTED, font=theme.font(14)).pack(pady=30)
+            ctk.CTkLabel(self.recent, text="Tags you write\nappear here.", text_color=theme.MUTED, font=theme.font(14)).pack(pady=30)
         for r in rows:
             card = ctk.CTkFrame(self.recent, fg_color=theme.SURFACE_2, corner_radius=10)
-            card.pack(fill="x", padx=6, pady=3)
+            card.pack(fill="x", padx=4, pady=2)
             icon, color = {"sent": ("✓", theme.OK), "pending": ("⏳", theme.WARN), "failed": ("✗", theme.BAD)}[r["state"]]
             ctk.CTkLabel(card, text=icon, width=30, font=theme.font(18, "bold"), text_color=color).pack(side="left", padx=(8, 0))
             col = ctk.CTkFrame(card, fg_color="transparent")
             col.pack(side="left", fill="x", expand=True, padx=6, pady=6)
-            ctk.CTkLabel(col, text=r["name"], font=theme.font(15, "bold"), text_color=theme.TEXT, anchor="w", wraplength=240, justify="left").pack(fill="x")
+            ctk.CTkLabel(col, text=r["name"], font=theme.font(14, "bold"), text_color=theme.TEXT, anchor="w", wraplength=200, justify="left").pack(fill="x")
             sub = f"Room {r['room_no']} · " + {"sent": "saved on server", "pending": "waiting to sync", "failed": "rejected"}[r["state"]]
-            ctk.CTkLabel(col, text=sub, font=theme.font(12), text_color=theme.MUTED, anchor="w").pack(fill="x")
+            ctk.CTkLabel(col, text=sub, font=theme.font(11), text_color=theme.MUTED, anchor="w").pack(fill="x")
             if r["state"] == "failed" and r["last_error"]:
-                ctk.CTkLabel(col, text=r["last_error"], font=theme.font(12), text_color=theme.BAD, anchor="w", wraplength=240, justify="left").pack(fill="x")
+                ctk.CTkLabel(col, text=r["last_error"], font=theme.font(12), text_color=theme.BAD, anchor="w", wraplength=200, justify="left").pack(fill="x")
 
     def _sync_now(self) -> None:
         self.drainer.kick()
@@ -657,7 +639,7 @@ class App(ctk.CTk):
     def _settings(self) -> None:
         win = ctk.CTkToplevel(self)
         win.title("About this device")
-        win.geometry(f"560x470+{self.winfo_rootx() + 60}+{self.winfo_rooty() + 30}")
+        win.geometry(f"560x400+{self.winfo_rootx() + 60}+{self.winfo_rooty() + 10}")
         win.configure(fg_color=theme.BG)
         win.transient(self)
         win.after(150, win.grab_set)
@@ -665,6 +647,7 @@ class App(ctk.CTk):
         info = [("Version", __version__), ("Device ID", self.cfg.device_id[:13] + "…"), ("Server", self.cfg.backend_url),
                 ("Tag host", self.cfg.public_host), ("Reader", f"{self.cfg.reader} / {self.cfg.pn532_interface}"),
                 ("Tag locking", "ENABLED" if self.cfg.tag_lock_enabled else "off (tags stay rewritable)"),
+                ("Clone tags", "accepted (no locking)" if self.cfg.allow_clone_tags else "refused"),
                 ("Log file", str(self.cfg.log_path))]
         box = ctk.CTkFrame(win, fg_color=theme.SURFACE, corner_radius=12)
         box.pack(fill="x", padx=20)

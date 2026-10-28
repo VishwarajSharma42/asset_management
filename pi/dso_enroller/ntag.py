@@ -27,6 +27,7 @@ CMD_FAST_READ = 0x3A
 CMD_WRITE = 0xA2
 
 NXP_VENDOR_ID = 0x04
+NTAG_TYPE = 0x04
 NTAG216_STORAGE_SIZE = 0x13
 USER_PAGE_FIRST = 0x04
 USER_PAGE_LAST = 0xE1
@@ -60,12 +61,23 @@ def transceive(pn532, payload: list[int], response_length: int) -> bytes:
     return bytes(resp[1:])
 
 
-def assert_ntag216(pn532) -> bytes:
+def is_genuine(version: bytes) -> bool:
+    return version[1] == NXP_VENDOR_ID
+
+
+def assert_ntag216(pn532, *, allow_clone: bool = False) -> bytes:
+    """Refuse anything that is not an NTAG216. With `allow_clone`, a tag that reports the NTAG216
+    type and size but a non-NXP vendor byte is accepted (cheap compatible tags): it holds NDEF
+    like the real thing, but its lock and configuration behaviour is not guaranteed."""
     version = transceive(pn532, [CMD_GET_VERSION], 8)
     if len(version) < 8:
         raise TagRejected(f"GET_VERSION returned {len(version)} bytes, expected 8")
-    if version[1] != NXP_VENDOR_ID:
-        raise TagRejected(f"vendor byte {version[1]:#04x} is not NXP")
+    if not is_genuine(version):
+        if not allow_clone:
+            raise TagRejected(f"vendor byte {version[1]:#04x} is not NXP (a clone tag; set allow_clone_tags to use it)")
+        if version[2] != NTAG_TYPE:
+            raise TagRejected(f"product type {version[2]:#04x} is not an NTAG")
+        log.warning("accepting a non-NXP NTAG216 clone (vendor %#04x)", version[1])
     if version[6] != NTAG216_STORAGE_SIZE:
         raise TagRejected(f"storage size {version[6]:#04x} is not NTAG216 ({NTAG216_STORAGE_SIZE:#04x})")
     return version
