@@ -1,0 +1,6 @@
+# TLS front door: serves the static front end, proxies /api to the backend container.
+FROM nginx:1.27-alpine
+
+COPY deploy/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY deploy/docker/dsoreg-proxy.conf /etc/nginx/dsoreg-proxy.conf
+COPY frontend /srv/dsoreg/frontend

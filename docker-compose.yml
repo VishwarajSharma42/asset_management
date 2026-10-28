@@ -1,0 +1,74 @@
+# Asset Register: Postgres + API + TLS front door.   Setup and day-to-day commands: docs/DOCKER.md
+#
+# Needs, before `docker compose up`:
+#   .env                       passwords and ports       (copy deploy/docker/env.example)
+#   secrets.docker/backend.env + KEK.hex                 (scripts/gen_keys.py, see docs/DOCKER.md)
+#   certs/fullchain.pem + privkey.pem                    (your certificate, or a self-signed one for testing)
+name: assetreg
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dsoreg
+      POSTGRES_USER: dsoreg_owner          # owns the tables; used only for init-db, never by the API
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:?set DB_OWNER_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dsoreg_owner -d dsoreg"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+    # no published port: only the backend container can reach the database
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ./secrets.docker/backend.env
+    environment:                          # these win over the env file
+      DSOREG_ENV: production
+      MEDIA_DIR: /var/lib/dsoreg/media
+      TRUST_PROXY_HOPS: "1"               # nginx in front
+      SERVE_FRONTEND: "0"                 # nginx serves the front end
+      HSTS: "0"                           # nginx sets it (HSTS_VALUE)
+      KEK_FILE: /run/secrets/kek
+    secrets:
+      - kek
+    volumes:
+      - media:/var/lib/dsoreg/media
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # no published port: reached only through nginx
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      HSTS_VALUE: ${HSTS_VALUE:-}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./certs:/certs:ro
+      - media:/var/lib/dsoreg/media:ro
+
+secrets:
+  kek:
+    file: ./secrets.docker/KEK.hex
+
+volumes:
+  pgdata:
+  media:

@@ -1,0 +1,16 @@
+.git
+.venv
+.build-venv
+**/.venv
+**/__pycache__
+**/.pytest_cache
+secrets.local
+secrets.docker
+certs
+.env
+*.db
+media
+pi
+tests
+docs
+backend/tests

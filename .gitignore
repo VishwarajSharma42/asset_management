@@ -1,5 +1,7 @@
 # secrets — NEVER commit
 secrets.local/
+secrets.docker/
+certs/
 *.env
 !*.env.example
 device.key
